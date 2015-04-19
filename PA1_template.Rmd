@@ -1,25 +1,114 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
-
-
 ## Loading and preprocessing the data
-
-
-
+The `activity.csv` file was loaded using `read.csv` function. The option of `header` was set to `TRUE` by default.
+```{r}
+setwd("C:/R_coursera/RepData_PeerAssessment1")
+activity <- read.csv("./activity.csv")
+```
 ## What is mean total number of steps taken per day?
+A function of `sumnona` is constructed to calculate the sum of steps for each day ignoring the `NA`s in the data. The result is saved in `sumofsteps`.
 
+```{r}
+sumnona <- function(x) {sum(x, na.rm = TRUE)}
+sumofsteps <- tapply(activity$steps, activity$date, sumnona)
+sumofsteps
+```
+The histogram is constructed below using `breaks = 10`.
+```{r}
+hist(sumofsteps, breaks = 10, main = "Histogram of the total number of steps taken each day", xlab = "Total number of steps taken each day")
+```
 
-
+The mean of the total number of steps taken per day is:
+```{r}
+mean(sumofsteps)
+```
+The median of the total number of steps taken per day is:
+```{r}
+median(sumofsteps)
+```
 ## What is the average daily activity pattern?
+First, we need to make the `inteval` a factor variable.
+```{r}
+activity$interval <- factor(activity$interval)
+```
+Then we need to calculate the average of steps taken for each interval, averaged across all days. The result is saved in `meanofsteps`.
+```{r}
+meannona <- function(x) {mean(x, na.rm = TRUE)}
+meanofsteps <- tapply(activity$steps, activity$interval, meannona)
+```
+To construct the a time series plot:
+```{r}
+plot(unlist(dimnames(meanofsteps)), meanofsteps, type = "l", xlab = "Interval (min)", ylab = "Average number of steps taken")
+```
 
-
-
+The maximum average number of steps occurs at:
+```{r}
+names(which.max(meanofsteps))
+```
 ## Imputing missing values
+The total number of missing values in the dataset:
+```{r}
+sum(is.na(activity$steps))
+```
+I chose to use the mean for that 5-minute interval to fill in all the `NA`s. First, copy all the data into a new dataset `newac`.
+```{r}
+newac <- activity
+```
+Then fill in all the `NA`s using the mean for that 5-minute interval.
+```{r}
+for (i in 1:nrow(newac)) {
+      if (is.na(newac$steps[i])) {
+            inte <- newac$interval[i]
+            newval <- unname(meanofsteps[names(meanofsteps) == inte])
+            newac$steps[i] <- newval
+      }
+}
+```
+Calulate the total number of steps taken each day. The results is save in `newsum`.
+```{r}
+newsum <- tapply(newac$steps, newac$date, sum)
+newsum
+```
+The new histogram is constructed below using `breaks = 10`.
+```{r}
+hist(newsum, breaks = 10, main = "NEW histogram of the total number of steps taken each day", xlab = "Total number of steps taken each day")
+```
 
+By comparing this new histogram with the previous histogram, it is clear to see that the total number of steps taken each day is more normally distributed by replacing the `NA`s with the mean for that 5-minute interval.
 
-
+The mean of total number of steps taken per day:
+```{r}
+tapply(newac$steps, newac$date, mean)
+```
+The median of total number of steps taken per day:
+```{r}
+tapply(newac$steps, newac$date, median)
+```
 ## Are there differences in activity patterns between weekdays and weekends?
+Identify which weekday each date is and save the result in the variable `whichday`.
+```{r}
+for (i in 1:nrow(newac)) {
+      newac$whichday[i] <- weekdays(as.Date(newac$date[i]))
+}
+for (i in 1:nrow(newac)) {
+      if (newac$whichday[i] == "Saturday" | newac$whichday[i] == "Sunday") {
+            newac$whichday[i] <- "weekend"
+      } else {
+            newac$whichday[i] <- "weekday"
+      }
+}
+```
+Subset the new dataset into two sets: `wdays` and `wends`.
+```{r}
+wdays <- newac[newac$whichday == "weekday", ]
+wends <- newac[newac$whichday == "weekend", ]
+```
+Construct the plots:
+```{r}
+par(mfrow = c(1, 2))
+wdmean <- tapply(wdays$steps, wdays$interval, mean)
+plot(unlist(dimnames(wdmean)), wdmean, type = "l", xlab = "Interval (min)", ylab = "Average number of steps taken", main = "Weekday")
+wemean <- tapply(wends$steps, wends$interval, mean)
+plot(unlist(dimnames(wemean)), wemean, type = "l", xlab = "Interval (min)", ylab = "Average number of steps taken", main = "Weekend")
+```
+
+By comparison, it shows more steps are taken during the weekdays and the number of steps in different time intervals is more evenly distributed during the day in the weekends than weekdays.
